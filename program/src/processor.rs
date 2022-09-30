@@ -25,9 +25,17 @@ impl EscrowProcessor {
                 msg!("Instruction: InitEscrow");
                 Self::process_init_escrow(accounts, amount, program_id)
             }
-            EscrowInstruction::Exchange { amount } => {
+            EscrowInstruction::ReceiveTakerTokens { amount } => {
                 msg!("Instruction: Exchange");
-                Self::process_exchange(accounts, amount, program_id)
+                Self::process_receive_taken_tokens(accounts, amount, program_id)
+            }
+            EscrowInstruction::InitializerWins { amount } => {
+                msg!("Instruction: Exchange");
+                Self::process_initializer_wins(accounts, amount, program_id)
+            }
+            EscrowInstruction::TakerWins { amount } => {
+                msg!("Instruction: Exchange");
+                Self::process_taker_wins(accounts, amount, program_id)
             }
         }
     }
@@ -44,14 +52,12 @@ impl EscrowProcessor {
             return Err(ProgramError::MissingRequiredSignature);
         }
         let temp_token_account = next_account_info(account_info_iter)?;
-
         let token_to_receive_account = next_account_info(account_info_iter)?;
-        if *token_to_receive_account.owner != spl_token::id() {
-            return Err(ProgramError::IncorrectProgramId);
-        }
+        // if *token_to_receive_account.owner != spl_token::id() {
+        //     return Err(ProgramError::IncorrectProgramId);
+        // }
         let escrow_account = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(next_account_info(account_info_iter)?)?;
-
         if !rent.is_exempt(escrow_account.lamports(), escrow_account.data_len()) {
             return Err(EscrowError::NotRentExempt.into());
         }
@@ -70,11 +76,11 @@ impl EscrowProcessor {
         let (pda, _nonce) = Pubkey::find_program_address(&[b"escrow"], program_id);
 
         let token_program = next_account_info(account_info_iter)?;
-        let owner_change_ix = spl_token::instruction::set_authority(
+        let owner_change_ix = solana_program::instruction::set_authority(
             token_program.key,
             temp_token_account.key,
             Some(&pda),
-            spl_token::instruction::AuthorityType::AccountOwner,
+            solana_program::instruction::AuthorityType::AccountOwner,
             initializer.key,
             &[&initializer.key],
         )?;
@@ -91,7 +97,7 @@ impl EscrowProcessor {
         Ok(())
     }
 
-    fn process_exchange(
+    fn process_receive_taken_tokens(
         accounts: &[AccountInfo],
         amount_expected_by_taker: u64,
         program_id: &Pubkey,
@@ -134,12 +140,9 @@ impl EscrowProcessor {
 
         let token_program = next_account_info(account_info_iter)?;
 
-        let transfer_to_initializer_ix = spl_token::instruction::transfer(
-            token_program.key,
+        let transfer_to_initializer_ix = solana_program::instruction::transfer(
             takers_sending_token_account.key,
             initializers_token_to_receive_account.key,
-            taker.key,
-            &[&taker.key],
             escrow_info.expected_amount,
         )?;
         msg!("Calling the token program to transfer tokens to the escrow's initializer...");
@@ -153,54 +156,69 @@ impl EscrowProcessor {
             ],
         )?;
 
-        let pda_account = next_account_info(account_info_iter)?;
+        // let pda_account = next_account_info(account_info_iter)?;
 
-        let transfer_to_taker_ix = spl_token::instruction::transfer(
-            token_program.key,
-            pdas_temp_token_account.key,
-            takers_token_to_receive_account.key,
-            &pda,
-            &[&pda],
-            pdas_temp_token_account_info.amount,
-        )?;
-        msg!("Calling the token program to transfer tokens to the taker...");
-        invoke_signed(
-            &transfer_to_taker_ix,
-            &[
-                pdas_temp_token_account.clone(),
-                takers_token_to_receive_account.clone(),
-                pda_account.clone(),
-                token_program.clone(),
-            ],
-            &[&[&b"escrow"[..], &[nonce]]],
-        )?;
+        // let transfer_to_taker_ix = solana_program::instruction::transfer(
+        //     pdas_temp_token_account.key,
+        //     takers_token_to_receive_account.key,
+        //     pdas_temp_token_account_info.amount,
+        // )?;
+        // msg!("Calling the token program to transfer tokens to the taker...");
+        // invoke_signed(
+        //     &transfer_to_taker_ix,
+        //     &[
+        //         pdas_temp_token_account.clone(),
+        //         takers_token_to_receive_account.clone(),
+        //         pda_account.clone(),
+        //         token_program.clone(),
+        //     ],
+        //     &[&[&b"escrow"[..], &[nonce]]],
+        // )?;
 
-        let close_pdas_temp_acc_ix = spl_token::instruction::close_account(
-            token_program.key,
-            pdas_temp_token_account.key,
-            initializers_main_account.key,
-            &pda,
-            &[&pda],
-        )?;
-        msg!("Calling the token program to close pda's temp account...");
-        invoke_signed(
-            &close_pdas_temp_acc_ix,
-            &[
-                pdas_temp_token_account.clone(),
-                initializers_main_account.clone(),
-                pda_account.clone(),
-                token_program.clone(),
-            ],
-            &[&[&b"escrow"[..], &[nonce]]],
-        )?;
+        // let close_pdas_temp_acc_ix = solana_program::instruction::close_account(
+        //     token_program.key,
+        //     pdas_temp_token_account.key,
+        //     initializers_main_account.key,
+        //     &pda,
+        //     &[&pda],
+        // )?;
+        // msg!("Calling the token program to close pda's temp account...");
+        // invoke_signed(
+        //     &close_pdas_temp_acc_ix,
+        //     &[
+        //         pdas_temp_token_account.clone(),
+        //         initializers_main_account.clone(),
+        //         pda_account.clone(),
+        //         token_program.clone(),
+        //     ],
+        //     &[&[&b"escrow"[..], &[nonce]]],
+        // )?;
 
-        msg!("Closing the escrow account...");
-        **initializers_main_account.lamports.borrow_mut() = initializers_main_account
-            .lamports()
-            .checked_add(escrow_account.lamports())
-            .ok_or(EscrowError::AmountOverflow)?;
-        **escrow_account.lamports.borrow_mut() = 0;
+        // msg!("Closing the escrow account...");
+        // **initializers_main_account.lamports.borrow_mut() = initializers_main_account
+        //     .lamports()
+        //     .checked_add(escrow_account.lamports())
+        //     .ok_or(EscrowError::AmountOverflow)?;
+        // **escrow_account.lamports.borrow_mut() = 0;
 
+        Ok(())
+    }
+
+    fn process_initializer_wins(
+        accounts: &[AccountInfo],
+        amount_expected_by_taker: u64,
+        program_id: &Pubkey,
+    ) -> ProgramResult {
+        
+        Ok(())
+    }
+
+    fn process_taker_wins(
+        accounts: &[AccountInfo],
+        amount_expected_by_taker: u64,
+        program_id: &Pubkey,
+    ) -> ProgramResult {
+        
         Ok(())
     }
 }

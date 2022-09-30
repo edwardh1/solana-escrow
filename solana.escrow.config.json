@@ -10,5 +10,5 @@
       "secretKey": ""
     }
   ],
-  "keypairPath": ""
+  "keypairPath": "/home/YOUR-USERNAME/.config/solana/id.json"
 }
