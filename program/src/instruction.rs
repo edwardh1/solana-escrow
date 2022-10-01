@@ -6,13 +6,13 @@ pub enum EscrowInstruction {
     InitEscrow {
         amount: u64,
     },
-    ReceiveTakerTokens {
+    // ReceiveTakerTokens {
+    //     amount: u64,
+    // },
+    PlayerAWins {
         amount: u64,
     },
-    InitializerWins {
-        amount: u64,
-    },
-    TakerWins {
+    PlayerBWins {
         amount: u64,
     },
 }
@@ -25,13 +25,13 @@ impl EscrowInstruction {
             0 => Self::InitEscrow {
                 amount: Self::unpack_amount(rest)?,
             },
-            1 => Self::ReceiveTakerTokens {
+            // 1 => Self::ReceiveTakerTokens {
+            //     amount: Self::unpack_amount(rest)?,
+            // },
+            1 => Self::PlayerAWins {
                 amount: Self::unpack_amount(rest)?,
             },
-            2 => Self::InitializerWins {
-                amount: Self::unpack_amount(rest)?,
-            },
-            3 => Self::TakerWins {
+            2 => Self::PlayerBWins {
                 amount: Self::unpack_amount(rest)?,
             },
             _ => return Err(InvalidInstruction.into()),
