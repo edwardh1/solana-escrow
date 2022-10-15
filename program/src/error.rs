@@ -11,6 +11,8 @@ pub enum EscrowError {
     ExpectedAmountMismatch,
     #[error("Amount Overflow")]
     AmountOverflow,
+    #[error("Insufficient Lamports")]
+    InsufficientLamports,
 }
 
 impl From<EscrowError> for ProgramError {
